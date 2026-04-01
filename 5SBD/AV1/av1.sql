@@ -1,70 +1,151 @@
+DROP TABLE #PedidosTemp;
+DROP TABLE CLIENTES;
+DROP TABLE PRODUTOS;
+DROP TABLE PEDIDOS;
+DROP TABLE COMPRAS;
+DROP TABLE EXPEDICAO;
+
 CREATE TABLE #PedidosTemp (
     codigoPedido VARCHAR(20),
     dataPedido DATE,
     SKU VARCHAR(50),
+    UPC VARCHAR(50),
     nomeProduto VARCHAR(100),
     qtd INT,
-    valor VARCHAR(20),
-    frete VARCHAR(20),
-    codigoComprador INT
+    valor VARCHAR(50),
+    frete VARCHAR(50),
+    email VARCHAR(100),
+    codigoComprador INT,
+    nomeComprador VARCHAR(100),
+    endereco VARCHAR(150),
+    CEP VARCHAR(10),
+    UF VARCHAR(2),
+    pais VARCHAR(30)
 );
 
 BULK INSERT #PedidosTemp
-FROM 'C:\SGBD\AV1\pedidos.txt'
+FROM 'C:\5SBD\AV1\pedidos.txt'
 WITH (
     FIRSTROW = 2,
     FIELDTERMINATOR = ';',
-    ROWTERMINATOR = '\n',
+    ROWTERMINATOR = '0x0a',
     CODEPAGE = '65001'
 );
 
-SELECT 
-    codigoPedido,
-    dataPedido,
-    SKU,
-    nomeProduto,
-    qtd,
-    CAST(REPLACE(valor, ',', '.') AS DECIMAL(10,2)) AS valor,
-    CAST(REPLACE(frete, ',', '.') AS DECIMAL(10,2)) AS frete,
-    codigoComprador
-INTO #Pedidos
-FROM #PedidosTemp;
+SELECT * FROM #PedidosTemp;
 
-SELECT 
-    codigoPedido,
-    SUM(valor * qtd) + MAX(frete) AS valor_total
-INTO #Totais
-FROM #Pedidos
-GROUP BY codigoPedido;
+CREATE TABLE CLIENTES (
+    ID_CLIENTE INT PRIMARY KEY,
+    NOME VARCHAR(150),
+    EMAIL VARCHAR(200)
+);
 
+CREATE TABLE PRODUTOS (
+    ID_PRODUTO INT IDENTITY PRIMARY KEY,
+    SKU VARCHAR(50),
+    UPC VARCHAR(50),
+    NOME_PRODUTO VARCHAR(150)
+);
 
-SELECT 
-    codigoPedido,
-    valor_total
-INTO #Fila
-FROM #Totais
-ORDER BY valor_total DESC;
+CREATE TABLE PEDIDOS (
+    ID_PEDIDO VARCHAR(50) PRIMARY KEY,
+    DATA_PEDIDO DATE,
+    ID_CLIENTE INT,
+    VL_TOTAL DECIMAL(10,2),
+    FOREIGN KEY (ID_CLIENTE) REFERENCES CLIENTES(ID_CLIENTE)
+);
 
--- PEDIDOS
-INSERT INTO pedidos (codigoPedido, codigoCliente, valorTotal)
-SELECT 
+CREATE TABLE COMPRAS (
+    ID_COMPRA INT IDENTITY PRIMARY KEY,
+    ID_PEDIDO VARCHAR(50),
+    ID_PRODUTO INT,
+    QTD INT,
+    VL_UNIT DECIMAL(10,2),
+
+    FOREIGN KEY (ID_PEDIDO) REFERENCES PEDIDOS(ID_PEDIDO),
+    FOREIGN KEY (ID_PRODUTO) REFERENCES PRODUTOS(ID_PRODUTO)
+);
+
+CREATE TABLE EXPEDICAO (
+    ID_EXPEDICAO INT IDENTITY PRIMARY KEY,
+    ID_PEDIDO VARCHAR(50),
+    ENDERECO VARCHAR(150),
+    CEP VARCHAR(20),
+    UF VARCHAR(10),
+    PAIS VARCHAR(50),
+    FRETE DECIMAL(10,2),
+
+    FOREIGN KEY (ID_PEDIDO) REFERENCES PEDIDOS(ID_PEDIDO)
+);
+
+-- COLOCANDO OS INSERTS
+
+INSERT INTO CLIENTES (ID_CLIENTE, NOME, EMAIL)
+SELECT DISTINCT
+    p.codigoComprador,
+    p.nomeComprador,
+    p.email
+FROM #PedidosTemp p
+LEFT JOIN CLIENTES c
+    ON c.ID_CLIENTE = p.codigoComprador
+WHERE c.ID_CLIENTE IS NULL;
+
+SELECT * FROM CLIENTES;
+
+INSERT INTO PRODUTOS (SKU, UPC, NOME_PRODUTO)
+SELECT DISTINCT
+    p.SKU,
+    p.UPC,
+    p.nomeProduto
+FROM #PedidosTemp p
+LEFT JOIN PRODUTOS pr
+    ON pr.SKU = p.SKU
+WHERE pr.SKU IS NULL;
+
+SELECT * FROM PRODUTOS;
+
+INSERT INTO PEDIDOS (ID_PEDIDO, DATA_PEDIDO, ID_CLIENTE, VL_TOTAL)
+SELECT DISTINCT
     p.codigoPedido,
-    MAX(p.codigoComprador),
-    t.valor_total
-FROM #Pedidos p
-JOIN #Totais t ON t.codigoPedido = p.codigoPedido
-GROUP BY p.codigoPedido, t.valor_total;
+    MAX(p.dataPedido) AS DATAPEDIDO,
+    MAX(p.codigoComprador) AS CODIGOCOMPRADOR,
+    SUM(p.qtd * CAST(REPLACE(p.valor, ',', '.') AS DECIMAL(10,2))) + 
+    + MAX(CAST(REPLACE(p.frete, ',', '.') AS DECIMAL(10,2))) AS VALOR_TOTAL
+FROM #PedidosTemp p
+LEFT JOIN PEDIDOS pe
+    ON pe.ID_PEDIDO = p.codigoPedido
+WHERE pe.ID_PEDIDO IS NULL
+GROUP BY p.codigoPedido;
 
--- COMPRA
-INSERT INTO compra (codigoPedido, SKU, quantidade, valorUnitario)
-SELECT 
-    codigoPedido,
-    SKU,
-    qtd,
-    valor
-FROM #Pedidos;
+SELECT * FROM PEDIDOS;
 
--- EXPEDIÇÃO (prioridade aplicada)
-INSERT INTO expedicao (codigoPedido)
-SELECT codigoPedido
-FROM #Fila;
+INSERT INTO EXPEDICAO (ID_PEDIDO, endereco, CEP, UF, pais, frete)
+SELECT DISTINCT
+    p.codigoPedido,
+    p.endereco,
+    p.CEP,
+    p.UF,
+    p.pais,
+    CAST(REPLACE(p.frete, ',', '.') AS DECIMAL(10,2))
+FROM #PedidosTemp p
+LEFT JOIN EXPEDICAO e
+    ON e.ID_PEDIDO = p.codigoPedido
+WHERE e.ID_PEDIDO IS NULL;
+
+SELECT * FROM EXPEDICAO;
+
+INSERT INTO COMPRAS (ID_PEDIDO, ID_PRODUTO, QTD, VL_UNIT)
+SELECT
+    p.codigoPedido,
+    pr.ID_PRODUTO,
+    p.qtd,
+    CAST(REPLACE(p.valor, ',', '.') AS DECIMAL(10,2))
+FROM #PedidosTemp p
+INNER JOIN PRODUTOS pr
+    ON p.SKU = pr.SKU
+LEFT JOIN COMPRAS c
+    ON c.ID_PEDIDO = p.codigoPedido
+   AND c.ID_PRODUTO = pr.ID_PRODUTO
+WHERE c.ID_COMPRA IS NULL;
+
+SELECT * FROM COMPRAS;
