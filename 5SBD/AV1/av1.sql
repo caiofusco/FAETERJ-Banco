@@ -6,21 +6,21 @@ DROP TABLE COMPRAS;
 DROP TABLE EXPEDICAO;
 
 CREATE TABLE #PedidosTemp (
-    codigoPedido VARCHAR(20),
-    dataPedido DATE,
+    CODIGO_PEDIDO VARCHAR(20),
+    DATA_PEDIDO DATE,
     SKU VARCHAR(50),
     UPC VARCHAR(50),
-    nomeProduto VARCHAR(100),
-    qtd INT,
-    valor VARCHAR(50),
-    frete VARCHAR(50),
-    email VARCHAR(100),
-    codigoComprador INT,
-    nomeComprador VARCHAR(100),
-    endereco VARCHAR(150),
+    NOME_PRODUTO VARCHAR(100),
+    QTD INT,
+    VALOR VARCHAR(50),
+    FRETE VARCHAR(50),
+    EMAIL VARCHAR(100),
+    CODIGO_COMPRADOR INT,
+    NOME_COMPRADOR VARCHAR(100),
+    ENDERECO VARCHAR(150),
     CEP VARCHAR(10),
     UF VARCHAR(2),
-    pais VARCHAR(30)
+    PAIS VARCHAR(30)
 );
 
 BULK INSERT #PedidosTemp
@@ -82,12 +82,12 @@ CREATE TABLE EXPEDICAO (
 
 INSERT INTO CLIENTES (ID_CLIENTE, NOME, EMAIL)
 SELECT DISTINCT
-    p.codigoComprador,
-    p.nomeComprador,
-    p.email
+    p.CODIGO_COMPRADOR,
+    p.NOME_COMPRADOR,
+    p.EMAIL
 FROM #PedidosTemp p
 LEFT JOIN CLIENTES c
-    ON c.ID_CLIENTE = p.codigoComprador
+    ON c.ID_CLIENTE = p.CODIGO_COMPRADOR
 WHERE c.ID_CLIENTE IS NULL;
 
 SELECT * FROM CLIENTES;
@@ -96,7 +96,7 @@ INSERT INTO PRODUTOS (SKU, UPC, NOME_PRODUTO)
 SELECT DISTINCT
     p.SKU,
     p.UPC,
-    p.nomeProduto
+    p.NOME_PRODUTO
 FROM #PedidosTemp p
 LEFT JOIN PRODUTOS pr
     ON pr.SKU = p.SKU
@@ -106,45 +106,45 @@ SELECT * FROM PRODUTOS;
 
 INSERT INTO PEDIDOS (ID_PEDIDO, DATA_PEDIDO, ID_CLIENTE, VL_TOTAL)
 SELECT DISTINCT
-    p.codigoPedido,
-    MAX(p.dataPedido) AS DATAPEDIDO,
-    MAX(p.codigoComprador) AS CODIGOCOMPRADOR,
-    SUM(p.qtd * CAST(REPLACE(p.valor, ',', '.') AS DECIMAL(10,2))) + 
-    + MAX(CAST(REPLACE(p.frete, ',', '.') AS DECIMAL(10,2))) AS VALOR_TOTAL
+    p.CODIGO_PEDIDO,
+    MAX(p.DATA_PEDIDO) AS DATA_PEDIDO,
+    MAX(p.CODIGO_COMPRADOR) AS CODIGO_COMPRADOR,
+    SUM(p.QTD * CAST(REPLACE(p.VALOR, ',', '.') AS DECIMAL(10,2))) + 
+    + MAX(CAST(REPLACE(p.FRETE, ',', '.') AS DECIMAL(10,2))) AS VALOR_TOTAL
 FROM #PedidosTemp p
 LEFT JOIN PEDIDOS pe
-    ON pe.ID_PEDIDO = p.codigoPedido
+    ON pe.ID_PEDIDO = p.CODIGO_PEDIDO
 WHERE pe.ID_PEDIDO IS NULL
-GROUP BY p.codigoPedido;
+GROUP BY p.CODIGO_PEDIDO;
 
 SELECT * FROM PEDIDOS;
 
-INSERT INTO EXPEDICAO (ID_PEDIDO, endereco, CEP, UF, pais, frete)
+INSERT INTO EXPEDICAO (ID_PEDIDO, ENDERECO, CEP, UF, PAIS, FRETE)
 SELECT DISTINCT
-    p.codigoPedido,
-    p.endereco,
+    p.CODIGO_PEDIDO,
+    p.ENDERECO,
     p.CEP,
     p.UF,
-    p.pais,
-    CAST(REPLACE(p.frete, ',', '.') AS DECIMAL(10,2))
+    p.PAIS,
+    CAST(REPLACE(p.FRETE, ',', '.') AS DECIMAL(10,2))
 FROM #PedidosTemp p
 LEFT JOIN EXPEDICAO e
-    ON e.ID_PEDIDO = p.codigoPedido
+    ON e.ID_PEDIDO = p.CODIGO_PEDIDO
 WHERE e.ID_PEDIDO IS NULL;
 
 SELECT * FROM EXPEDICAO;
 
 INSERT INTO COMPRAS (ID_PEDIDO, ID_PRODUTO, QTD, VL_UNIT)
 SELECT
-    p.codigoPedido,
+    p.CODIGO_PEDIDO,
     pr.ID_PRODUTO,
-    p.qtd,
-    CAST(REPLACE(p.valor, ',', '.') AS DECIMAL(10,2))
+    p.QTD,
+    CAST(REPLACE(p.VALOR, ',', '.') AS DECIMAL(10,2))
 FROM #PedidosTemp p
 INNER JOIN PRODUTOS pr
     ON p.SKU = pr.SKU
 LEFT JOIN COMPRAS c
-    ON c.ID_PEDIDO = p.codigoPedido
+    ON c.ID_PEDIDO = p.CODIGO_PEDIDO
    AND c.ID_PRODUTO = pr.ID_PRODUTO
 WHERE c.ID_COMPRA IS NULL;
 
