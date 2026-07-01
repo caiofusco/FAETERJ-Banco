@@ -2,8 +2,6 @@
 
 API REST funcional para um sistema de reserva de serviços de salão de beleza e centro de estética.
 
-O projeto foi criado para atender ao pedido da AV2: implementar a API do sistema, sem criar especificação de casos de uso e sem criar diagrama de classes.
-
 ## Tecnologias usadas
 
 - Python 3.12+
@@ -152,10 +150,3 @@ curl -X POST http://127.0.0.1:8000/api/v1/reservations \
     "card_last4": "1234"
   }'
 ```
-
-## Observações importantes
-
-1. O pagamento é simulado: a API grava a transação como aprovada e gera uma referência fictícia.
-2. Por padrão, o banco é SQLite para facilitar a execução local.
-3. Para produção, troque `SECRET_KEY`, use HTTPS, configure um banco externo e integre um gateway de pagamento real.
-4. O projeto foi mantido simples para fins acadêmicos, mas com separação suficiente para demonstrar DDD, ORM e JWT.
