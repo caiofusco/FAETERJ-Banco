@@ -11,7 +11,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
-    description="API de reservas para salão de beleza e centro de estética, com DDD simplificado, ORM, JWT e SQLAlchemy.",
+    description="API de reservas para salão de beleza e centro de estética, com DDD, ORM, JWT e SQLAlchemy.",
 )
 
 
